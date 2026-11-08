@@ -74,6 +74,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_gifts_person ON gifts(person_id);
 `);
 
+// Migración: columna para el enlace de cada opción (bases creadas antes de esta versión).
+if (!db.prepare('PRAGMA table_info(gifts)').all().some((c) => c.name === 'link')) {
+  db.exec("ALTER TABLE gifts ADD COLUMN link TEXT NOT NULL DEFAULT ''");
+}
+
 const q = {
   allPeople: db.prepare(`
     SELECT p.id, p.name, p.name_key AS key, COUNT(g.id) AS giftCount
@@ -84,11 +89,13 @@ const q = {
   insertPerson: db.prepare('INSERT INTO people (name, name_key) VALUES (?, ?)'),
   deletePerson: db.prepare('DELETE FROM people WHERE id = ?'),
   giftsByPerson: db.prepare(
-    'SELECT id, name, description, created_at AS createdAt FROM gifts WHERE person_id = ? ORDER BY id'),
+    'SELECT id, name, description, link, created_at AS createdAt FROM gifts WHERE person_id = ? ORDER BY id'),
   allGifts: db.prepare(
-    'SELECT id, person_id AS personId, name, description, created_at AS createdAt FROM gifts ORDER BY id'),
-  insertGift: db.prepare('INSERT INTO gifts (person_id, name, description) VALUES (?, ?, ?)'),
-  giftByPersonAndName: db.prepare('SELECT id FROM gifts WHERE person_id = ? AND lower(name) = lower(?)'),
+    'SELECT id, person_id AS personId, name, description, link, created_at AS createdAt FROM gifts ORDER BY id'),
+  insertGift: db.prepare('INSERT INTO gifts (person_id, name, description, link) VALUES (?, ?, ?, ?)'),
+  updateGift: db.prepare('UPDATE gifts SET name = ?, description = ?, link = ? WHERE id = ? AND person_id = ?'),
+  giftByPersonAndName: db.prepare(
+    'SELECT id FROM gifts WHERE person_id = ? AND lower(name) = lower(?) AND id <> ?'),
   deleteGift: db.prepare('DELETE FROM gifts WHERE id = ?'),
 };
 
@@ -117,6 +124,35 @@ function tidyName(str) {
 
 function cleanText(str) {
   return String(str ?? '').replace(/\r\n?/g, '\n').replace(/[^\S\n]+/g, ' ').trim();
+}
+
+/** Acepta "amazon.com/x" o "https://…"; devuelve { link } normalizado o { error }. */
+function normalizeLink(raw) {
+  let s = String(raw ?? '').trim();
+  if (!s) return { link: '' };
+  if (s.length > 500) return { error: 'El enlace es muy largo (máx. 500 caracteres).' };
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  try {
+    const u = new URL(s);
+    if (!/^https?:$/.test(u.protocol) || !u.hostname.includes('.')) throw new Error();
+    return { link: u.href };
+  } catch {
+    return { error: 'El enlace no es válido. Ejemplo: https://www.tienda.com/producto' };
+  }
+}
+
+/** Valida los campos de una opción de regalo. */
+function validateGift({ p_name, p_description, p_link }) {
+  const name = cleanText(p_name).replace(/\n/g, ' ');
+  const description = cleanText(p_description);
+  if (!name && !description) return { error: 'Falta el nombre del regalo y la descripción.' };
+  if (!name) return { error: 'Falta el nombre del regalo.' };
+  if (!description) return { error: 'Falta la descripción.' };
+  if (name.length > 100) return { error: 'El nombre del regalo es muy largo (máx. 100 caracteres).' };
+  if (description.length > 1500) return { error: 'La descripción es muy larga (máx. 1500 caracteres).' };
+  const l = normalizeLink(p_link);
+  if (l.error) return { error: l.error };
+  return { name, description, link: l.link };
 }
 
 const NAME_WORD = /^[\p{L}][\p{L}'’.-]*$/u;
@@ -194,19 +230,26 @@ const RPC = {
     return { person: { id: Number(info.lastInsertRowid), name, giftCount: 0 } };
   },
 
-  add_gift({ p_person_id, p_name, p_description }) {
-    const person = q.personById.get(asId(p_person_id));
+  add_gift(args) {
+    const person = q.personById.get(asId(args.p_person_id));
     if (!person) return fail(404, 'Esta persona ya no existe.');
-    const name = cleanText(p_name).replace(/\n/g, ' ');
-    const description = cleanText(p_description);
-    if (!name && !description) return fail(400, 'Falta el nombre del regalo y la descripción.');
-    if (!name) return fail(400, 'Falta el nombre del regalo.');
-    if (!description) return fail(400, 'Falta la descripción.');
-    if (name.length > 100) return fail(400, 'El nombre del regalo es muy largo (máx. 100 caracteres).');
-    if (description.length > 1500) return fail(400, 'La descripción es muy larga (máx. 1500 caracteres).');
-    if (q.giftByPersonAndName.get(person.id, name)) return fail(409, `Ya registraste una opción llamada "${name}".`);
-    const info = q.insertGift.run(person.id, name, description);
-    return { gift: { id: Number(info.lastInsertRowid), name, description } };
+    const v = validateGift(args);
+    if (v.error) return fail(400, v.error);
+    if (q.giftByPersonAndName.get(person.id, v.name, 0)) return fail(409, `Ya registraste una opción llamada "${v.name}".`);
+    const info = q.insertGift.run(person.id, v.name, v.description, v.link);
+    return { gift: { id: Number(info.lastInsertRowid), name: v.name, description: v.description, link: v.link } };
+  },
+
+  update_gift(args) {
+    const person = q.personById.get(asId(args.p_person_id));
+    if (!person) return fail(404, 'Esta persona ya no existe.');
+    const giftId = asId(args.p_gift_id);
+    const v = validateGift(args);
+    if (v.error) return fail(400, v.error);
+    if (q.giftByPersonAndName.get(person.id, v.name, giftId)) return fail(409, `Ya tienes otra opción llamada "${v.name}".`);
+    const info = q.updateGift.run(v.name, v.description, v.link, giftId, person.id);
+    if (!info.changes) return fail(404, 'Esta opción ya no existe.');
+    return { gift: { id: giftId, name: v.name, description: v.description, link: v.link } };
   },
 
   admin_login({ p_password }, ctx) {

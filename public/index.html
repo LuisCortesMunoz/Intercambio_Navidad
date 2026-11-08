@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Intercambio Navideño</title>
+  <title>Intercambio Navideño · Familia Muñoz</title>
   <meta name="description" content="Registra tus deseos de regalo y consulta las opciones de los demás participantes del intercambio.">
   <meta name="color-scheme" content="only light">
   <meta name="supported-color-schemes" content="light">
@@ -30,7 +30,7 @@
           <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 9.2l7.1-.6z"/></svg>
         </div>
         <p class="eyebrow">¡Jo, jo, jo!</p>
-        <h1 class="title">Intercambio<br>Navideño</h1>
+        <h1 class="title">Intercambio<br>Navideño<span class="title-family">Familia Muñoz</span></h1>
         <p class="subtitle">Comparte tus deseos de regalo y descubre qué le gustaría recibir a cada participante.</p>
 
         <div class="home-actions">
@@ -106,7 +106,7 @@
 
         <div class="card">
           <div class="card-ribbon" aria-hidden="true"></div>
-          <h3 class="card-title"><span class="step">2</span> Nueva opción de regalo</h3>
+          <h3 class="card-title"><span class="step">2</span> <span id="gift-form-title">Nueva opción de regalo</span></h3>
           <form id="gift-form" novalidate>
             <label class="field">
               <span class="label">Nombre del regalo <em>*</em></span>
@@ -114,13 +114,20 @@
             </label>
             <label class="field">
               <span class="label">Descripción <em>*</em></span>
-              <textarea id="gift-desc" rows="4" maxlength="1500" placeholder="Color, talla, modelo, marca, enlace de la tienda o cualquier detalle útil…"></textarea>
+              <textarea id="gift-desc" rows="4" maxlength="1500" placeholder="Color, talla, modelo, marca o cualquier detalle útil…"></textarea>
               <span class="counter" id="gift-desc-count">0 / 1500</span>
             </label>
-            <button class="btn btn-red" type="submit">
-              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-              Guardar opción
-            </button>
+            <label class="field">
+              <span class="label">Enlace <small class="optional">(opcional)</small></span>
+              <input type="url" id="gift-link" placeholder="https://www.tienda.com/producto" maxlength="500" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false">
+            </label>
+            <div class="form-actions">
+              <button class="btn btn-red" type="submit">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                <span id="gift-submit-label">Guardar opción</span>
+              </button>
+              <button class="btn btn-ghost" type="button" id="gift-cancel" hidden>Cancelar edición</button>
+            </div>
           </form>
         </div>
 

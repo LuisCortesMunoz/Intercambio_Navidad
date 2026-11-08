@@ -29,6 +29,8 @@
   }
   const ICON_TRASH = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
   const ICON_CHEV = '<path d="M9 6l6 6-6 6"/>';
+  const ICON_EDIT = '<path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/>';
+  const ICON_LINK = '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>';
 
   function giftIcon(i) {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -148,7 +150,8 @@
     searchPeople: (q, signal) => rpc('search_people', { p_query: q }, { signal }),
     getPerson: (id) => rpc('get_person', { p_id: id }),
     createPerson: (name) => rpc('create_person', { p_name: tidyName(name) }),
-    addGift: (personId, name, description) => rpc('add_gift', { p_person_id: personId, p_name: name, p_description: description }),
+    addGift: (personId, g) => rpc('add_gift', { p_person_id: personId, p_name: g.name, p_description: g.description, p_link: g.link }),
+    updateGift: (personId, giftId, g) => rpc('update_gift', { p_person_id: personId, p_gift_id: giftId, p_name: g.name, p_description: g.description, p_link: g.link }),
     async login(password) { const { token } = await rpc('admin_login', { p_password: password }); adminToken.set(token); },
     async logout() { const t = adminToken.get(); adminToken.set(''); if (t) await rpc('admin_logout', { p_token: t }); },
     async isAdmin() { const t = adminToken.get(); if (!t) return false; const { admin } = await rpc('admin_check', { p_token: t }); if (!admin) adminToken.set(''); return admin; },
@@ -267,13 +270,27 @@
     };
   }
 
-  function renderGiftItem(g, i) {
+  /** Botón que abre el enlace de una opción en otra pestaña. */
+  function giftLinkButton(link) {
+    if (!/^https?:\/\//i.test(link || '')) return null;
+    let host = '';
+    try { host = new URL(link).hostname.replace(/^www\./, ''); } catch { return null; }
+    return el('a', { class: 'gift-link', href: link, target: '_blank', rel: 'noopener noreferrer nofollow', title: link },
+      svg(ICON_LINK), el('span', { text: 'Ver enlace' }), el('small', { text: host }));
+  }
+
+  function renderGiftItem(g, i, { onEdit } = {}) {
     return el('li', { class: 'gift-item' },
       giftIcon(i),
       el('div', { class: 'gift-body' },
         el('h4', { text: g.name }),
         el('p', {}, linkify(g.description)),
-        g.createdAt ? el('span', { class: 'gift-date', text: `Agregado el ${formatDate(g.createdAt)}` }) : null));
+        giftLinkButton(g.link),
+        g.createdAt ? el('span', { class: 'gift-date', text: `Agregado el ${formatDate(g.createdAt)}` }) : null),
+      onEdit ? el('button', {
+        type: 'button', class: 'icon-btn icon-btn-edit', title: 'Modificar opción', 'aria-label': `Modificar la opción ${g.name}`,
+        onclick: () => onEdit(g),
+      }, svg(ICON_EDIT)) : null);
   }
 
   /* ==========================================================
@@ -286,7 +303,36 @@
     const createName = $('#create-name');
     const giftName = $('#gift-name');
     const giftDesc = $('#gift-desc');
+    const giftLink = $('#gift-link');
     let person = null;
+    let editing = null; // opción que se está modificando
+
+    function clearGiftForm() {
+      giftName.value = ''; giftDesc.value = ''; giftLink.value = ''; updateCounter();
+    }
+
+    function startEdit(g) {
+      editing = g;
+      giftName.value = g.name;
+      giftDesc.value = g.description;
+      giftLink.value = g.link || '';
+      updateCounter();
+      $('#gift-form-title').textContent = 'Modificar opción';
+      $('#gift-submit-label').textContent = 'Guardar cambios';
+      $('#gift-cancel').hidden = false;
+      $('#gift-form').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => giftName.focus({ preventScroll: true }), 300);
+    }
+
+    function stopEdit() {
+      editing = null;
+      clearGiftForm();
+      $('#gift-form-title').textContent = 'Nueva opción de regalo';
+      $('#gift-submit-label').textContent = 'Guardar opción';
+      $('#gift-cancel').hidden = true;
+    }
+
+    $('#gift-cancel').addEventListener('click', () => { stopEdit(); giftName.focus(); });
 
     const search = setupPersonSearch({
       input: searchInput,
@@ -328,7 +374,7 @@
       setAvatar($('#add-avatar'), p.name);
       stepFind.hidden = true;
       stepGifts.hidden = false;
-      giftName.value = ''; giftDesc.value = ''; updateCounter();
+      stopEdit();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => giftName.focus({ preventScroll: true }), 250);
       await loadGifts();
@@ -341,7 +387,7 @@
         const { person: p } = await api.getPerson(person.id);
         $('#my-gift-count').textContent = p.gifts.length;
         list.replaceChildren(...(p.gifts.length
-          ? p.gifts.slice().reverse().map(renderGiftItem)
+          ? p.gifts.slice().reverse().map((g, i) => renderGiftItem(g, i, { onEdit: startEdit }))
           : [el('li', { class: 'empty-msg', text: 'Todavía no tienes opciones. ¡Agrega la primera arriba! 🎄' })]));
       } catch (err) {
         if (err.status === 404) { toast(err.message, 'error'); reset(); return; }
@@ -357,6 +403,7 @@
       const btn = e.submitter || $('#gift-form button');
       const name = giftName.value.trim();
       const description = giftDesc.value.trim();
+      const link = giftLink.value.trim();
       if (!name || !description) {
         markInvalid(!name ? giftName : giftDesc);
         toast(!name && !description ? 'Falta el nombre del regalo y la descripción.'
@@ -365,13 +412,19 @@
       }
       withBusy(btn, async () => {
         try {
-          await api.addGift(person.id, name, description);
-          toast(`¡"${name}" se guardó correctamente!`);
-          giftName.value = ''; giftDesc.value = ''; updateCounter();
+          if (editing) {
+            await api.updateGift(person.id, editing.id, { name, description, link });
+            toast(`¡"${name}" se actualizó correctamente!`);
+          } else {
+            await api.addGift(person.id, { name, description, link });
+            toast(`¡"${name}" se guardó correctamente!`);
+          }
+          stopEdit();
           giftName.focus();
           await loadGifts();
         } catch (err) {
-          if (err.status === 404) { toast(err.message, 'error'); reset(); return; }
+          if (err.status === 404) { toast(err.message, 'error'); stopEdit(); await loadGifts(); return; }
+          if (/enlace/i.test(err.message)) markInvalid(giftLink);
           toast(err.message, 'error');
         }
       });
@@ -381,6 +434,7 @@
 
     function reset() {
       person = null;
+      stopEdit();
       stepGifts.hidden = true;
       stepFind.hidden = false;
       search.reset();
@@ -421,7 +475,7 @@
         if (current !== p) return;
         $('#view-gift-count').textContent = plural(person.gifts.length, 'opción', 'opciones');
         list.replaceChildren(...(person.gifts.length
-          ? person.gifts.map(renderGiftItem)
+          ? person.gifts.map((g, i) => renderGiftItem(g, i))
           : [el('li', { class: 'empty-msg', text: `${person.name} aún no ha registrado opciones de regalo.` })]));
       } catch (err) {
         list.replaceChildren(el('li', { class: 'empty-msg', text: err.message }));
@@ -497,6 +551,7 @@
               el('div', { class: 'gift-body' },
                 el('h4', { text: g.name }),
                 el('p', {}, linkify(g.description)),
+                giftLinkButton(g.link),
                 el('span', { class: 'gift-date', text: formatDate(g.createdAt) })),
               el('button', {
                 type: 'button', class: 'icon-btn', title: 'Eliminar opción', 'aria-label': `Eliminar la opción ${g.name}`,
