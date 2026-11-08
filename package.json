@@ -1,0 +1,14 @@
+{
+  "name": "intercambio-navidad",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Página para organizar un intercambio navideño: registro de deseos de regalo, consulta y panel de dueño.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

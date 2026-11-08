@@ -103,24 +103,14 @@
   }
 
   /* ==========================================================
-     API (Supabase: funciones definidas en supabase/schema.sql)
+     API (servidor: server.js → POST /api/rpc/<función>)
      ========================================================== */
-  const CONFIG = window.INTERCAMBIO_CONFIG || {};
-  const SUPABASE_URL = String(CONFIG.SUPABASE_URL || '').replace(/\/+$/, '');
-  const SUPABASE_KEY = String(CONFIG.SUPABASE_KEY || '');
-  const CONFIGURED = /^https:\/\//.test(SUPABASE_URL) && SUPABASE_KEY.length > 20;
-
   async function rpc(fn, args = {}, { signal } = {}) {
-    if (!CONFIGURED) {
-      throw Object.assign(new Error('La página aún no está conectada a la base de datos (falta configurar public/config.js).'), { status: 0 });
-    }
-    const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY };
-    // Las claves "anon" antiguas son JWT y también van en Authorization.
-    if (SUPABASE_KEY.startsWith('eyJ')) headers.Authorization = `Bearer ${SUPABASE_KEY}`;
     let res;
     try {
-      res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
-        method: 'POST', headers, body: JSON.stringify(args), signal,
+      res = await fetch(`api/rpc/${fn}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(args), signal, credentials: 'same-origin',
       });
     } catch (e) {
       if (e.name === 'AbortError') throw e;
@@ -129,8 +119,7 @@
     let data = null;
     try { data = await res.json(); } catch { /* sin cuerpo */ }
     if (!res.ok) {
-      console.error('Supabase', fn, res.status, data);
-      throw Object.assign(new Error('Ocurrió un error en el servidor. Intenta de nuevo en un momento.'), { status: res.status });
+      throw Object.assign(new Error(data?.error || 'Ocurrió un error en el servidor. Intenta de nuevo en un momento.'), { status: res.status });
     }
     if (data && typeof data === 'object' && !Array.isArray(data) && data.error) {
       throw Object.assign(new Error(data.error), { status: data.status || 400, data });
@@ -591,7 +580,6 @@
   }
   window.addEventListener('hashchange', route);
   route();
-  if (!CONFIGURED) toast('Falta conectar la base de datos: configura public/config.js.', 'error');
 
   /* ==========================================================
      Decoración: luces y nieve
