@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Intercambio Navideño</title>
+  <meta name="description" content="Registra tus deseos de regalo y consulta las opciones de los demás participantes del intercambio.">
+  <meta name="color-scheme" content="only light">
+  <meta name="supported-color-schemes" content="light">
+  <meta name="theme-color" content="#0b2e22">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Nunito:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <!-- Guirnalda de luces -->
+  <div class="lights" aria-hidden="true"><ul id="lights"></ul></div>
+
+  <main id="app">
+
+    <!-- ============ PANTALLA PRINCIPAL ============ -->
+    <section class="view view-home" data-view="home">
+      <div class="home-inner">
+        <div class="star" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 9.2l7.1-.6z"/></svg>
+        </div>
+        <p class="eyebrow">¡Jo, jo, jo!</p>
+        <h1 class="title">Intercambio<br>Navideño</h1>
+        <p class="subtitle">Comparte tus deseos de regalo y descubre qué le gustaría recibir a cada participante.</p>
+
+        <div class="home-actions">
+          <a class="btn btn-big btn-red" href="#/agregar">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar opciones
+          </a>
+          <a class="btn btn-big btn-green" href="#/ver">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            Ver opciones
+          </a>
+        </div>
+      </div>
+
+      <!-- Escena decorativa -->
+      <div class="scene" aria-hidden="true">
+        <svg class="tree tree-left" viewBox="0 0 100 140"><use href="#tree"/></svg>
+        <svg class="gift gift-a" viewBox="0 0 64 64"><use href="#gift-red"/></svg>
+        <svg class="gift gift-b" viewBox="0 0 64 64"><use href="#gift-green"/></svg>
+        <svg class="gift gift-c" viewBox="0 0 64 64"><use href="#gift-gold"/></svg>
+        <svg class="tree tree-right" viewBox="0 0 100 140"><use href="#tree"/></svg>
+      </div>
+
+      <a class="owner-link" href="#/dueno">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        Dueño
+      </a>
+    </section>
+
+    <!-- ============ AGREGAR OPCIONES ============ -->
+    <section class="view" data-view="agregar" hidden>
+      <header class="page-head">
+        <a class="back" href="#/">← Inicio</a>
+        <h2>Agregar opciones</h2>
+      </header>
+
+      <!-- Paso 1: identificarse -->
+      <div class="card" id="add-step-find">
+        <div class="card-ribbon" aria-hidden="true"></div>
+        <h3 class="card-title"><span class="step">1</span> ¿Quién eres?</h3>
+        <p class="hint">Busca tu nombre para ver si ya estás registrado.</p>
+        <label class="field">
+          <span class="sr-only">Buscar mi nombre</span>
+          <input type="search" id="add-search" placeholder="Escribe tu nombre o apellido…" autocomplete="off" maxlength="80">
+        </label>
+        <ul class="results" id="add-results" role="listbox" aria-label="Personas registradas"></ul>
+
+        <div class="divider"><span>¿No apareces?</span></div>
+
+        <form id="create-form" novalidate>
+          <label class="field">
+            <span class="label">Nombre y primer apellido <em>*</em></span>
+            <input type="text" id="create-name" placeholder="Ej. María López" autocomplete="name" maxlength="80">
+          </label>
+          <p class="hint small">Escribe como mínimo tu nombre y tu primer apellido.</p>
+          <button class="btn btn-gold" type="submit">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+            Crear mi perfil
+          </button>
+        </form>
+      </div>
+
+      <!-- Paso 2: agregar regalos -->
+      <div id="add-step-gifts" hidden>
+        <div class="card person-banner">
+          <div class="avatar" id="add-avatar"></div>
+          <div class="person-banner-text">
+            <span class="hint small">Agregando opciones para</span>
+            <strong id="add-person-name"></strong>
+          </div>
+          <button class="btn btn-ghost btn-small" type="button" id="change-person">Cambiar</button>
+        </div>
+
+        <div class="card">
+          <div class="card-ribbon" aria-hidden="true"></div>
+          <h3 class="card-title"><span class="step">2</span> Nueva opción de regalo</h3>
+          <form id="gift-form" novalidate>
+            <label class="field">
+              <span class="label">Nombre del regalo <em>*</em></span>
+              <input type="text" id="gift-name" placeholder="Ej. Sudadera con capucha" maxlength="100">
+            </label>
+            <label class="field">
+              <span class="label">Descripción <em>*</em></span>
+              <textarea id="gift-desc" rows="4" maxlength="1500" placeholder="Color, talla, modelo, marca, enlace de la tienda o cualquier detalle útil…"></textarea>
+              <span class="counter" id="gift-desc-count">0 / 1500</span>
+            </label>
+            <button class="btn btn-red" type="submit">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Guardar opción
+            </button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">
+            <svg class="ico ico-gold" viewBox="0 0 24 24" aria-hidden="true"><use href="#ico-gift"/></svg>
+            Mis opciones registradas <span class="badge" id="my-gift-count">0</span>
+          </h3>
+          <ul class="gift-list" id="my-gifts"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VER OPCIONES ============ -->
+    <section class="view" data-view="ver" hidden>
+      <header class="page-head">
+        <a class="back" href="#/">← Inicio</a>
+        <h2>Ver opciones</h2>
+      </header>
+
+      <div class="card">
+        <div class="card-ribbon" aria-hidden="true"></div>
+        <label class="field">
+          <span class="label">Buscar participante</span>
+          <input type="search" id="view-search" placeholder="Escribe un nombre o apellido…" autocomplete="off" maxlength="80">
+        </label>
+        <ul class="results" id="view-results" role="listbox" aria-label="Participantes"></ul>
+      </div>
+
+      <div id="view-detail" hidden>
+        <div class="card person-banner">
+          <div class="avatar" id="view-avatar"></div>
+          <div class="person-banner-text">
+            <span class="hint small">Lista de deseos de</span>
+            <strong id="view-person-name"></strong>
+          </div>
+          <span class="badge badge-big" id="view-gift-count"></span>
+        </div>
+        <ul class="gift-list gift-grid" id="view-gifts"></ul>
+      </div>
+    </section>
+
+    <!-- ============ DUEÑO ============ -->
+    <section class="view" data-view="dueno" hidden>
+      <header class="page-head">
+        <a class="back" href="#/">← Inicio</a>
+        <h2>Panel del dueño</h2>
+      </header>
+
+      <div class="card card-narrow" id="admin-login">
+        <div class="card-ribbon" aria-hidden="true"></div>
+        <h3 class="card-title">
+          <svg class="ico ico-gold" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          Acceso restringido
+        </h3>
+        <form id="login-form" novalidate>
+          <label class="field">
+            <span class="label">Contraseña</span>
+            <input type="password" id="admin-password" autocomplete="current-password" maxlength="200">
+          </label>
+          <button class="btn btn-gold" type="submit">Entrar</button>
+        </form>
+      </div>
+
+      <div id="admin-panel" hidden>
+        <div class="card admin-toolbar">
+          <div class="stats">
+            <div><strong id="stat-people">0</strong><span>personas</span></div>
+            <div><strong id="stat-gifts">0</strong><span>opciones</span></div>
+          </div>
+          <label class="field field-inline">
+            <span class="sr-only">Filtrar personas</span>
+            <input type="search" id="admin-filter" placeholder="Filtrar por nombre…" autocomplete="off">
+          </label>
+          <button class="btn btn-ghost btn-small" type="button" id="admin-refresh">Actualizar</button>
+          <button class="btn btn-ghost btn-small" type="button" id="admin-logout">Salir</button>
+        </div>
+        <div id="admin-list" class="admin-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de confirmación -->
+  <div class="modal" id="confirm-modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+      <div class="modal-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/></svg>
+      </div>
+      <h3 id="confirm-title">¿Seguro?</h3>
+      <p id="confirm-text"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
+        <button class="btn btn-red" type="button" id="confirm-ok">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- Símbolos SVG reutilizables -->
+  <svg width="0" height="0" class="sr-only" aria-hidden="true">
+    <defs>
+      <symbol id="tree" viewBox="0 0 100 140">
+        <rect x="44" y="118" width="12" height="18" rx="2" fill="#6b3f1d"/>
+        <path d="M50 8 L82 52 H66 L90 86 H70 L96 120 H4 L30 86 H10 L34 52 H18 Z" fill="#1d6b45"/>
+        <path d="M50 8 L82 52 H66 L90 86 H70 L96 120 H50 Z" fill="#165a39"/>
+        <circle cx="38" cy="62" r="4" fill="#e63946"/>
+        <circle cx="62" cy="74" r="4" fill="#f4c95d"/>
+        <circle cx="30" cy="100" r="4" fill="#f4c95d"/>
+        <circle cx="70" cy="104" r="4" fill="#e63946"/>
+        <circle cx="52" cy="40" r="3.5" fill="#fff"/>
+        <circle cx="50" cy="94" r="3.5" fill="#fff"/>
+        <path d="M50 0 l3 6 6.5.6 -5 4.3 1.5 6.4 -6-3.5 -6 3.5 1.5-6.4 -5-4.3 6.5-.6z" fill="#f4c95d"/>
+      </symbol>
+      <symbol id="gift-red" viewBox="0 0 64 64">
+        <rect x="6" y="24" width="52" height="36" rx="4" fill="#c1272d"/>
+        <rect x="2" y="16" width="60" height="12" rx="3" fill="#e63946"/>
+        <rect x="28" y="16" width="8" height="44" fill="#f4c95d"/>
+        <path d="M32 16c-6-12-18-10-14-2 2 3 8 3 14 2zm0 0c6-12 18-10 14-2-2 3-8 3-14 2z" fill="#f4c95d"/>
+      </symbol>
+      <symbol id="gift-green" viewBox="0 0 64 64">
+        <rect x="6" y="24" width="52" height="36" rx="4" fill="#1d6b45"/>
+        <rect x="2" y="16" width="60" height="12" rx="3" fill="#2a8a5c"/>
+        <rect x="28" y="16" width="8" height="44" fill="#fff"/>
+        <path d="M32 16c-6-12-18-10-14-2 2 3 8 3 14 2zm0 0c6-12 18-10 14-2-2 3-8 3-14 2z" fill="#fff"/>
+      </symbol>
+      <symbol id="gift-gold" viewBox="0 0 64 64">
+        <rect x="6" y="24" width="52" height="36" rx="4" fill="#d9a531"/>
+        <rect x="2" y="16" width="60" height="12" rx="3" fill="#f4c95d"/>
+        <rect x="28" y="16" width="8" height="44" fill="#c1272d"/>
+        <path d="M32 16c-6-12-18-10-14-2 2 3 8 3 14 2zm0 0c6-12 18-10 14-2-2 3-8 3-14 2z" fill="#c1272d"/>
+      </symbol>
+      <symbol id="ico-gift" viewBox="0 0 24 24">
+        <rect x="3" y="9" width="18" height="12" rx="1.5"/>
+        <path d="M2 9h20M12 9v12M12 9C10 4 6 4 6 6.5S10 9 12 9zm0 0c2-5 6-5 6-2.5S14 9 12 9z"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
