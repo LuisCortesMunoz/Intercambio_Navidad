@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Nunito:wght@400;600;700;800&display=swap">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
   <canvas id="snow" aria-hidden="true"></canvas>
@@ -30,7 +30,7 @@
           <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 9.2l7.1-.6z"/></svg>
         </div>
         <p class="eyebrow">¡Jo, jo, jo!</p>
-        <h1 class="title">Intercambio<br>Navideño<span class="title-family">Familia Muñoz</span></h1>
+        <h1 class="title">Intercambio<br>Navideño <span class="title-family">Familia Muñoz</span></h1>
         <p class="subtitle">Comparte tus deseos de regalo y descubre qué le gustaría recibir a cada participante.</p>
 
         <div class="home-actions">
@@ -41,6 +41,10 @@
           <a class="btn btn-big btn-green" href="#/ver">
             <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
             Ver opciones
+          </a>
+          <a class="btn btn-big btn-gold" href="#/ruleta">
+            <span class="ico-emoji" aria-hidden="true">🎡</span>
+            Ruleta del intercambio
           </a>
         </div>
       </div>
@@ -193,19 +197,243 @@
       </div>
 
       <div id="admin-panel" hidden>
-        <div class="card admin-toolbar">
-          <div class="stats">
-            <div><strong id="stat-people">0</strong><span>personas</span></div>
-            <div><strong id="stat-gifts">0</strong><span>opciones</span></div>
-          </div>
-          <label class="field field-inline">
-            <span class="sr-only">Filtrar personas</span>
-            <input type="search" id="admin-filter" placeholder="Filtrar por nombre…" autocomplete="off">
-          </label>
-          <button class="btn btn-ghost btn-small" type="button" id="admin-refresh">Actualizar</button>
-          <button class="btn btn-ghost btn-small" type="button" id="admin-logout">Salir</button>
+        <div class="admin-tabs" role="tablist" aria-label="Secciones del panel">
+          <button type="button" role="tab" class="admin-tab" data-tab="opciones" aria-selected="true">🎁 Opciones de regalo</button>
+          <button type="button" role="tab" class="admin-tab" data-tab="reglas" aria-selected="false">👨‍👩‍👧‍👦 Reglas del intercambio</button>
+          <button type="button" role="tab" class="admin-tab" data-tab="asignaciones" aria-selected="false">📋 Asignaciones del intercambio</button>
+          <button class="btn btn-ghost btn-small admin-logout" type="button" id="admin-logout">Salir</button>
         </div>
-        <div id="admin-list" class="admin-list"></div>
+
+        <!-- Pestaña: opciones de regalo (funcionalidad original) -->
+        <div class="admin-tabpanel" data-tabpanel="opciones">
+          <div class="card admin-toolbar">
+            <div class="stats">
+              <div><strong id="stat-people">0</strong><span>personas</span></div>
+              <div><strong id="stat-gifts">0</strong><span>opciones</span></div>
+            </div>
+            <label class="field field-inline">
+              <span class="sr-only">Filtrar personas</span>
+              <input type="search" id="admin-filter" placeholder="Filtrar por nombre…" autocomplete="off">
+            </label>
+            <button class="btn btn-ghost btn-small" type="button" id="admin-refresh">Actualizar</button>
+          </div>
+          <div id="admin-list" class="admin-list"></div>
+        </div>
+
+        <!-- Pestaña: reglas del intercambio -->
+        <div class="admin-tabpanel" data-tabpanel="reglas" hidden>
+          <div class="notice notice-lock" id="rules-locked" hidden>
+            🔒 Las reglas están bloqueadas porque ya hay un sorteo generado. Para modificarlas, reinicia el intercambio desde la pestaña “Asignaciones del intercambio”.
+          </div>
+
+          <div class="card">
+            <div class="card-ribbon" aria-hidden="true"></div>
+            <h3 class="card-title">👨‍👩‍👧‍👦 Familias</h3>
+            <p class="hint">Crea los grupos familiares y asigna a cada participante a su familia.</p>
+            <form id="family-form" class="inline-form" novalidate>
+              <label class="field field-inline">
+                <span class="sr-only">Nombre de la familia</span>
+                <input type="text" id="family-name" placeholder="Ej. Familia López" maxlength="60" autocomplete="off">
+              </label>
+              <button class="btn btn-green btn-small" type="submit">Crear familia</button>
+            </form>
+            <ul class="chip-list" id="family-list"></ul>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">🧑‍🎄 Participantes y su familia</h3>
+            <p class="hint">Solo se guarda a qué familia pertenece cada persona; sus datos y opciones de regalo no cambian.</p>
+            <ul class="member-list" id="member-list"></ul>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">📏 Reglas activas</h3>
+            <label class="switch">
+              <input type="checkbox" id="rule-family">
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span>Evitar regalos entre miembros de la misma familia</span>
+            </label>
+
+            <h4 class="sub-title">Restricciones particulares</h4>
+            <form id="restriction-form" class="restriction-form" novalidate>
+              <label class="field"><span class="label">Persona</span><select id="restr-giver"></select></label>
+              <span class="restr-arrow" aria-hidden="true">no le regala a</span>
+              <label class="field"><span class="label">Persona</span><select id="restr-receiver"></select></label>
+              <label class="check"><input type="checkbox" id="restr-mutual" checked> En ambos sentidos</label>
+              <button class="btn btn-green btn-small" type="submit">Agregar restricción</button>
+            </form>
+            <ul class="restriction-list" id="restriction-list"></ul>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">🔍 ¿Se puede hacer el sorteo?</h3>
+            <p class="hint">Comprueba si existe al menos una asignación completa que cumpla todas las reglas.</p>
+            <button class="btn btn-gold" type="button" id="check-feasibility">Comprobar reglas</button>
+            <div class="check-result" id="feasibility-result" hidden></div>
+          </div>
+        </div>
+
+        <!-- Pestaña: asignaciones del intercambio -->
+        <div class="admin-tabpanel" data-tabpanel="asignaciones" hidden>
+          <div class="card">
+            <div class="card-ribbon" aria-hidden="true"></div>
+            <h3 class="card-title">🎡 Control del sorteo</h3>
+            <p class="draw-state" id="draw-state"></p>
+            <div class="stat-tiles">
+              <div class="tile"><strong id="as-participants">0</strong><span>Participantes</span></div>
+              <div class="tile"><strong id="as-assignments">0</strong><span>Asignaciones</span></div>
+              <div class="tile"><strong id="as-revealed">0</strong><span>Ya giraron</span></div>
+              <div class="tile"><strong id="as-pending">0</strong><span>Pendientes</span></div>
+              <div class="tile tile-wide"><strong id="as-valid">—</strong><span>Validación</span></div>
+            </div>
+            <div class="draw-actions">
+              <button class="btn btn-red" type="button" id="draw-generate">🎲 Generar sorteo</button>
+              <button class="btn btn-ghost" type="button" id="draw-validate">✅ Validar sorteo</button>
+              <button class="btn btn-green" type="button" id="draw-activate">▶️ Activar ruleta</button>
+              <button class="btn btn-ghost" type="button" id="draw-deactivate">⏸️ Desactivar ruleta</button>
+              <button class="btn btn-gold" type="button" id="draw-download">📥 Descargar asignaciones</button>
+              <button class="btn btn-ghost" type="button" id="draw-pending">⏳ Consultar pendientes</button>
+              <button class="btn btn-ghost btn-danger" type="button" id="draw-reset">♻️ Reiniciar intercambio</button>
+            </div>
+            <div class="check-result" id="validation-result" hidden></div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">📋 Asignaciones del intercambio</h3>
+            <div class="table-filters">
+              <label class="field field-inline">
+                <span class="sr-only">Buscar participante</span>
+                <input type="search" id="as-search" placeholder="Buscar participante…" autocomplete="off">
+              </label>
+              <label class="field field-inline field-select">
+                <span class="sr-only">Filtrar por estado</span>
+                <select id="as-status">
+                  <option value="">Todos los estados</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="revelado">Revelado</option>
+                </select>
+              </label>
+              <label class="field field-inline field-select">
+                <span class="sr-only">Filtrar por familia</span>
+                <select id="as-family"><option value="">Todas las familias</option></select>
+              </label>
+            </div>
+            <div class="table-wrap">
+              <table class="as-table">
+                <thead>
+                  <tr>
+                    <th>Participante</th><th>Familia</th><th>Le toca regalar a</th>
+                    <th>Familia del destinatario</th><th>Estado</th><th>Fecha y hora</th>
+                  </tr>
+                </thead>
+                <tbody id="as-rows"></tbody>
+              </table>
+            </div>
+            <p class="hint small table-foot" id="as-foot"></p>
+          </div>
+
+          <details class="card card-details" id="codes-card">
+            <summary><h3 class="card-title">🔑 Códigos de acceso de los participantes</h3></summary>
+            <p class="hint">Cada participante necesita su código personal para entrar a la ruleta. Compártelo solo con esa persona.</p>
+            <ul class="code-list" id="code-list"></ul>
+          </details>
+
+          <details class="card card-details">
+            <summary><h3 class="card-title">🧾 Historial de operaciones</h3></summary>
+            <ul class="log-list" id="log-list"></ul>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ RULETA ============ -->
+    <section class="view" data-view="ruleta" hidden>
+      <header class="page-head">
+        <a class="back" href="#/">← Inicio</a>
+        <h2>Ruleta del intercambio</h2>
+      </header>
+
+      <div class="card card-narrow ruleta-msg" id="ruleta-closed" hidden>
+        <div class="ruleta-msg-ico" aria-hidden="true">🎅</div>
+        <h3>La ruleta aún no está lista</h3>
+        <p class="hint">El dueño del intercambio todavía no ha hecho el sorteo. ¡Vuelve pronto!</p>
+      </div>
+
+      <div class="card" id="ruleta-step-who" hidden>
+        <div class="card-ribbon" aria-hidden="true"></div>
+        <h3 class="card-title"><span class="step">1</span> ¿Quién eres?</h3>
+        <p class="hint" id="ruleta-who-hint">Busca y selecciona tu nombre.</p>
+        <label class="field">
+          <span class="sr-only">Buscar mi nombre</span>
+          <input type="search" id="ruleta-search" placeholder="Escribe tu nombre o apellido…" autocomplete="off" maxlength="80">
+        </label>
+        <ul class="results" id="ruleta-results" role="listbox" aria-label="Participantes del sorteo"></ul>
+      </div>
+
+      <div id="ruleta-step-code" hidden>
+        <div class="card person-banner">
+          <div class="avatar" id="ruleta-code-avatar"></div>
+          <div class="person-banner-text">
+            <span class="hint small">Entrando como</span>
+            <strong id="ruleta-code-name"></strong>
+          </div>
+          <button class="btn btn-ghost btn-small" type="button" id="ruleta-change">Cambiar</button>
+        </div>
+        <div class="card card-narrow">
+          <div class="card-ribbon" aria-hidden="true"></div>
+          <h3 class="card-title"><span class="step">2</span> Tu código de acceso</h3>
+          <form id="ruleta-code-form" novalidate>
+            <label class="field">
+              <span class="sr-only">Código de acceso</span>
+              <input type="text" id="ruleta-code" class="code-input" placeholder="Ej. K7M4QX" maxlength="12"
+                     autocomplete="off" autocapitalize="characters" spellcheck="false">
+            </label>
+            <button class="btn btn-red" type="submit">Entrar a la ruleta</button>
+          </form>
+          <p class="hint small code-help">El dueño del intercambio te dio un código personal. Si no lo tienes, pídeselo.</p>
+        </div>
+      </div>
+
+      <div id="ruleta-stage" hidden>
+        <div class="card person-banner">
+          <div class="avatar" id="ruleta-avatar"></div>
+          <div class="person-banner-text">
+            <span class="hint small">Hola,</span>
+            <strong id="ruleta-person-name"></strong>
+          </div>
+          <button class="btn btn-ghost btn-small" type="button" id="ruleta-logout">Salir</button>
+        </div>
+
+        <div class="card wheel-card">
+          <div class="wheel-wrap">
+            <div class="wheel-pointer" aria-hidden="true"></div>
+            <svg class="wheel" id="wheel" viewBox="-210 -210 420 420" role="img" aria-label="Ruleta con los nombres de los participantes">
+              <g id="wheel-rotor"></g>
+              <circle r="34" class="wheel-hub"/>
+              <text class="wheel-hub-star" y="12" text-anchor="middle">★</text>
+            </svg>
+          </div>
+          <p class="hint wheel-hint" id="wheel-hint" aria-live="polite"></p>
+          <button class="btn btn-big btn-red" type="button" id="spin-btn">🎁 Girar ruleta</button>
+        </div>
+
+        <div class="card result-card" id="ruleta-result" hidden>
+          <p class="result-msg" id="result-msg"></p>
+          <p class="hint small" id="result-date"></p>
+          <button class="btn btn-green" type="button" id="see-gifts">🎁 Ver sus opciones de regalo</button>
+        </div>
+
+        <div id="ruleta-gifts" hidden>
+          <div class="card person-banner">
+            <div class="avatar" id="ruleta-gifts-avatar"></div>
+            <div class="person-banner-text">
+              <span class="hint small">Lista de deseos de</span>
+              <strong id="ruleta-gifts-name"></strong>
+            </div>
+            <span class="badge badge-big" id="ruleta-gifts-count"></span>
+          </div>
+          <ul class="gift-list gift-grid" id="ruleta-gift-list"></ul>
+        </div>
       </div>
     </section>
   </main>
@@ -224,6 +452,34 @@
         <button class="btn btn-red" type="button" id="confirm-ok">Eliminar</button>
       </div>
     </div>
+  </div>
+
+  <!-- Modal: confirmar identidad del dueño (descarga y reinicio) -->
+  <div class="modal" id="auth-modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <form class="modal-box" id="auth-form" role="dialog" aria-modal="true" aria-labelledby="auth-title" novalidate>
+      <div class="modal-icon modal-icon-gold" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      </div>
+      <h3 id="auth-title">Confirma tu identidad</h3>
+      <p id="auth-text"></p>
+      <div class="auth-format" id="auth-format" hidden>
+        <label class="check"><input type="radio" name="auth-format" value="xlsx" checked> Excel (.xlsx)</label>
+        <label class="check"><input type="radio" name="auth-format" value="csv"> CSV</label>
+      </div>
+      <label class="field" id="auth-confirm-field" hidden>
+        <span class="label">Escribe <strong>REINICIAR</strong> para confirmar</span>
+        <input type="text" id="auth-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20">
+      </label>
+      <label class="field">
+        <span class="label">Contraseña del dueño</span>
+        <input type="password" id="auth-password" autocomplete="current-password" maxlength="200">
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
+        <button class="btn btn-red" type="submit" id="auth-ok">Continuar</button>
+      </div>
+    </form>
   </div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -268,6 +524,6 @@
     </defs>
   </svg>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
